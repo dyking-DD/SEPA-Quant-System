@@ -1,0 +1,26 @@
+# SEPA Quant System Requirements
+# Version: 1.0.0
+
+# Core dependencies
+pandas>=2.0.0
+numpy>=1.24.0
+sqlalchemy>=2.0.0
+tqdm>=4.66.0
+schedule>=1.2.0
+matplotlib>=3.8.0
+
+# Data fetching
+baostock>=0.8.80
+akshare>=1.12.0
+requests>=2.31.0
+beautifulsoup4>=4.12.0
+lxml>=4.9.0
+
+# Optional: GUI/Dashboard
+streamlit>=1.30.0
+plotly>=5.18.0
+
+# Development
+pytest>=7.4.0
+black>=23.0.0
+flake8>=6.0.0

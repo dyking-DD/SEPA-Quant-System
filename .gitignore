@@ -1,0 +1,64 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+.venv/
+ENV/
+env.bak/
+venv.bak/
+.python-version
+
+# Data files
+*.db
+*.csv
+*.xlsx
+*.xls
+*.json
+*.pickle
+*.pkl
+data/
+backtests/
+logs/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Secrets
+.env
+*.env
+config/private_settings.py
+config/secrets.py
+keys/
+credentials/
+secrets/
+
+# Temporary
+tmp/
+temp/
+*.tmp
+*.temp
+
+# Logs
+*.log
+logs/
+
+# Output
+output/
+results/

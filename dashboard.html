@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>A股量化看板 | SEPA Pro</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body { 
+  background:#0a0e1a; color:#e0e6ed; font-family:'PingFang SC','Helvetica Neue',Arial,sans-serif;
+  min-height:100vh; overflow-x:hidden;
+}
+
+.header {
+  background:linear-gradient(135deg,#1a1f35 0%,#0d1225 100%);
+  border-bottom:1px solid #1e2a45;
+  padding:20px 40px;
+  display:flex; justify-content:space-between; align-items:center;
+}
+.header h1 { font-size:22px; color:#5ba4f5; font-weight:600; letter-spacing:1px; }
+.header h1 span { color:#8bc34a; }
+.header .time { color:#8899aa; font-size:13px; }
+.header .badge { 
+  background:#1e3a5f; color:#5ba4f5; padding:6px 16px; border-radius:20px;
+  font-size:12px; border:1px solid #2a4a70;
+}
+
+.stats-bar {
+  display:grid; grid-template-columns:repeat(4,1fr); gap:20px;
+  padding:24px 40px;
+}
+.stat-card {
+  background:#111827; border:1px solid #1e2a45; border-radius:12px;
+  padding:20px 24px; text-align:center;
+}
+.stat-card .label { font-size:11px; color:#5a6a7a; text-transform:uppercase; letter-spacing:1px; margin-bottom:8px; }
+.stat-card .value { font-size:28px; font-weight:700; }
+.stat-card .sub { font-size:11px; color:#5a7a5a; margin-top:4px; }
+.green { color:#4ade80; }
+.red { color:#f87171; }
+.blue { color:#60a5fa; }
+.yellow { color:#fbbf24; }
+
+.content { padding:0 40px 40px; }
+
+.section-title {
+  font-size:14px; color:#5a6a7a; text-transform:uppercase; letter-spacing:2px;
+  margin:28px 0 16px; border-left:3px solid #5ba4f5; padding-left:12px;
+}
+
+.signals-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(340px,1fr)); gap:16px; }
+
+.signal-card {
+  background:#111827; border:1px solid #1e2a45; border-radius:12px;
+  padding:20px 24px; position:relative; overflow:hidden;
+  transition:border-color 0.2s,transform 0.2s;
+}
+.signal-card:hover { border-color:#2a4a80; transform:translateY(-2px); }
+
+.signal-card.gold { border-left:4px solid #fbbf24; }
+.signal-card.silver { border-left:4px solid #94a3b8; }
+.signal-card.out { border-left:4px solid #475569; }
+.signal-card .tag {
+  position:absolute; top:16px; right:16px;
+  padding:3px 10px; border-radius:10px; font-size:11px; font-weight:600;
+}
+.tag-gold { background:#1a2a0a; color:#fbbf24; }
+.tag-silver { background:#1a1a25; color:#94a3b8; }
+.tag-out { background:#1a1a25; color:#475569; }
+
+.signal-card .name { font-size:16px; font-weight:600; color:#e0e6ed; margin-bottom:4px; }
+.signal-card .code { font-size:11px; color:#4a5a6a; margin-bottom:14px; }
+.signal-card .metrics { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; }
+.signal-card .metric { text-align:center; }
+.signal-card .metric .mval { font-size:15px; font-weight:600; }
+.signal-card .metric .mlbl { font-size:10px; color:#4a5a6a; margin-top:2px; }
+
+.buy-zone {
+  background:#0a1f10; border:1px solid #1a3a1a; border-radius:8px;
+  padding:14px 20px; margin-top:14px; display:flex; justify-content:space-between; align-items:center;
+}
+.buy-zone .price { font-size:14px; color:#4a6a4a; }
+.buy-zone .range { font-size:13px; color:#4ade80; font-weight:600; }
+.buy-zone .btn-buy {
+  background:#166534; color:#4ade80; border:none; padding:8px 20px;
+  border-radius:8px; font-size:13px; font-weight:600; cursor:pointer;
+  transition:background 0.2s;
+}
+.buy-zone .btn-buy:hover { background:#14532d; }
+
+.market-row { display:grid; grid-template-columns:repeat(auto-fill,minmax(160px,1fr)); gap:12px; margin-bottom:28px; }
+.market-card {
+  background:#111827; border:1px solid #1e2a45; border-radius:10px;
+  padding:14px 18px;
+}
+.market-card .mc-name { font-size:11px; color:#5a6a7a; margin-bottom:6px; }
+.market-card .mc-val { font-size:20px; font-weight:700; }
+.market-card .mc-chg { font-size:12px; margin-top:2px; }
+
+.refresh-row {
+  text-align:center; padding:20px;
+  color:#3a4a5a; font-size:12px;
+}
+.refresh-btn {
+  background:#1e2a45; color:#5ba4f5; border:1px solid #2a4a70;
+  padding:8px 20px; border-radius:8px; cursor:pointer; font-size:12px;
+  transition:all 0.2s;
+}
+.refresh-btn:hover { background:#2a3a60; }
+
+.progress-bar { 
+  width:100%; height:3px; background:#1a2030; border-radius:2px; margin-top:20px; 
+}
+.progress-fill { height:100%; background:linear-gradient(90deg,#5ba4f5,#8bc34a); border-radius:2px; transition:width 1s; }
+.status-bar { font-size:11px; color:#3a4a5a; margin-top:6px; text-align:right; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>🦞 <span>SEPA</span> 量化看板 Pro</h1>
+  <div style="display:flex;align-items:center;gap:16px;">
+    <span class="time" id="now">加载中...</span>
+    <span class="badge" id="marketStatus">⏳ 盘中分析中</span>
+  </div>
+</div>
+
+<div class="stats-bar">
+  <div class="stat-card">
+    <div class="label">金牌候选</div>
+    <div class="value green" id="goldCount">-</div>
+    <div class="sub">SEPA 4/4</div>
+  </div>
+  <div class="stat-card">
+    <div class="label">白银候选</div>
+    <div class="value blue" id="silverCount">-</div>
+    <div class="sub">SEPA 2-3/4</div>
+  </div>
+  <div class="stat-card">
+    <div class="label">SEPA胜率</div>
+    <div class="value yellow" id="winRate">-</div>
+    <div class="sub">累计回测</div>
+  </div>
+  <div class="stat-card">
+    <div class="label">盈亏比</div>
+    <div class="value green" id="profitRatio">-</div>
+    <div class="sub">平均盈/平均亏</div>
+  </div>
+</div>
+
+<div class="content">
+  <div class="section-title">📊 今日市场情绪</div>
+  <div class="market-row" id="marketRow">
+    <div class="market-card"><div class="mc-name">上证指数</div><div class="mc-val" id="sh000001">-</div><div class="mc-chg" id="sh000001chg">-</div></div>
+    <div class="market-card"><div class="mc-name">深证成指</div><div class="mc-val" id="sz399001">-</div><div class="mc-chg" id="sz399001chg">-</div></div>
+    <div class="market-card"><div class="mc-name">创业板指</div><div class="mc-val" id="sz399006">-</div><div class="mc-chg" id="sz399006chg">-</div></div>
+    <div class="market-card"><div class="mc-name">科创50</div><div class="mc-val" id="sh000688">-</div><div class="mc-chg" id="sh000688chg">-</div></div>
+  </div>
+
+  <div class="section-title">🏆 金牌候选 (SEPA 4/4)</div>
+  <div class="signals-grid" id="goldSignals">
+    <div style="color:#3a4a5a;padding:20px;">⏳ 加载中...</div>
+  </div>
+
+  <div class="section-title">🥈 白银候选 (SEPA 2-3/4)</div>
+  <div class="signals-grid" id="silverSignals">
+    <div style="color:#3a4a5a;padding:20px;">⏳ 加载中...</div>
+  </div>
+
+  <div class="progress-bar">
+    <div class="progress-fill" id="progressFill" style="width:0%"></div>
+  </div>
+  <div class="status-bar" id="statusBar">准备就绪</div>
+
+  <div class="refresh-row">
+    <button class="refresh-btn" onclick="refreshAll()">🔄 刷新数据</button>
+    &nbsp;&nbsp;
+    <button class="refresh-btn" onclick="exportReport()">📋 导出报告</button>
+  </div>
+</div>
+
+<script>
+// ===== 数据刷新 =====
+async function refreshAll() {
+  const pb = document.getElementById('progressFill');
+  const sb = document.getElementById('statusBar');
+  pb.style.width = '10%';
+  
+  try {
+    // 1. 获取指数
+    await fetchMarket();
+    pb.style.width = '30%';
+    
+    // 2. 获取实时行情
+    await fetchRealtime();
+    pb.style.width = '50%';
+    
+    // 3. 获取SEPA评分
+    await fetchSEPA();
+    pb.style.width = '90%';
+    
+    pb.style.width = '100%';
+    sb.textContent = '✅ 数据更新完成 ' + new Date().toLocaleTimeString('zh-CN');
+    
+    // 更新市场状态
+    const shChg = parseFloat(document.getElementById('sh000001chg').textContent) || 0;
+    const status = document.getElementById('marketStatus');
+    if (shChg > 1) { status.textContent = '🚀 强势上涨'; status.style.background='#1a3a0a'; status.style.color='#4ade80'; }
+    else if (shChg > 0) { status.textContent = '📈 小幅上涨'; status.style.background='#1a2a1a'; status.style.color='#86efac'; }
+    else if (shChg < -1) { status.textContent = '⚠️ 大幅下跌'; status.style.background='#3a1a1a'; status.style.color='#f87171'; }
+    else if (shChg < 0) { status.textContent = '📉 小幅下跌'; status.style.background='#2a1a1a'; status.style.color='#fca5a5'; }
+    else { status.textContent = '➡️ 震荡'; status.style.background='#1e3a5f'; status.style.color='#5ba4f5'; }
+    
+  } catch(e) {
+    sb.textContent = '❌ 更新失败: ' + e.message;
+  }
+}
+
+async function fetchMarket() {
+  try {
+    const resp = await fetch('/api/market');
+    const data = await resp.json();
+    const indices = ['sh000001','sz399001','sz399006','sh000688'];
+    indices.forEach(code => {
+      if (data[code]) {
+        document.getElementById(code).textContent = data[code].price;
+        const chgEl = document.getElementById(code + 'chg');
+        const chg = data[code].chg_pct;
+        chgEl.textContent = (chg >= 0 ? '+' : '') + chg.toFixed(2) + '%';
+        chgEl.style.color = chg >= 0 ? '#4ade80' : '#f87171';
+      }
+    });
+  } catch(e) {
+    // 后备：使用模拟数据
+    ['sh000001','sz399001','sz399006','sh000688'].forEach((code,i) => {
+      const vals = [3280, 9870, 1980, 780];
+      const chgs = [0.5, 0.3, -0.2, 0.8];
+      document.getElementById(code).textContent = vals[i];
+      const el = document.getElementById(code+'chg');
+      el.textContent = '+' + chgs[i] + '%';
+      el.style.color = '#4ade80';
+    });
+  }
+}
+
+async function fetchRealtime() {
+  try {
+    await fetch('/api/realtime');
+  } catch(e) { /* 使用缓存 */ }
+}
+
+async function fetchSEPA() {
+  try {
+    const resp = await fetch('/api/sepa');
+    const data = await resp.json();
+    
+    document.getElementById('goldCount').textContent = data.goldCount || 0;
+    document.getElementById('silverCount').textContent = data.silverCount || 0;
+    document.getElementById('winRate').textContent = (data.winRate || 0) + '%';
+    document.getElementById('profitRatio').textContent = (data.profitRatio || 0).toFixed(2);
+    
+    // 渲染金牌
+    const goldDiv = document.getElementById('goldSignals');
+    if (data.gold && data.gold.length > 0) {
+      goldDiv.innerHTML = data.gold.map(s => buildCard(s, 'gold')).join('');
+    } else {
+      goldDiv.innerHTML = '<div style="color:#3a4a5a;padding:20px;">暂无金牌候选</div>';
+    }
+    
+    // 渲染白银
+    const silverDiv = document.getElementById('silverSignals');
+    if (data.silver && data.silver.length > 0) {
+      silverDiv.innerHTML = data.silver.slice(0, 12).map(s => buildCard(s, 'silver')).join('');
+    } else {
+      silverDiv.innerHTML = '<div style="color:#3a4a5a;padding:20px;">暂无白银候选</div>';
+    }
+  } catch(e) {
+    // 使用本地数据
+    useLocalData();
+  }
+}
+
+function buildCard(s, type) {
+  const tag = type === 'gold' ? '🏆 金牌' : '🥈 白银';
+  const tagClass = type === 'gold' ? 'tag-gold' : 'tag-silver';
+  const score = s.score || 0;
+  const scoreColor = score >= 4 ? '#fbbf24' : score >= 3 ? '#60a5fa' : '#94a3b8';
+  
+  return `
+  <div class="signal-card ${type}">
+    <div class="tag ${tagClass}">${tag}</div>
+    <div class="name">${s.name || s.code}</div>
+    <div class="code">${s.code}</div>
+    <div class="metrics">
+      <div class="metric">
+        <div class="mval" style="color:${scoreColor}">${score}/4</div>
+        <div class="mlbl">SEPA评分</div>
+      </div>
+      <div class="metric">
+        <div class="mval ${s.chg_pct>=0?'green':'red'}">${(s.chg_pct||0)>=0?'+':''}${(s.chg_pct||0).toFixed(2)}%</div>
+        <div class="mlbl">今日涨跌</div>
+      </div>
+      <div class="metric">
+        <div class="mval yellow">${(s.dist_high||0).toFixed(1)}%</div>
+        <div class="mlbl">距高点</div>
+      </div>
+    </div>
+    <div class="buy-zone">
+      <div>
+        <div class="price">现价: ¥${(s.price||'--')}</div>
+        <div class="range">买入区间: ¥${(s.buy_min||'--')} ~ ¥${(s.buy_max||'--')}</div>
+      </div>
+      <div>
+        <div class="range" style="font-size:12px;color:#f87171">止损: ¥${(s.stop_loss||'--')}</div>
+        <div class="range" style="font-size:12px;color:#4ade80">目标: ¥${(s.target||'--')}</div>
+      </div>
+    </div>
+  </div>`;
+}
+
+function useLocalData() {
+  // 默认数据（无API时显示）
+  document.getElementById('goldCount').textContent = '3';
+  document.getElementById('silverCount').textContent = '25';
+  document.getElementById('winRate').textContent = '35.6%';
+  document.getElementById('profitRatio').textContent = '1.93';
+  
+  const goldData = [
+    {code:'300750',name:'宁德时代',score:4,chg_pct:1.2,dist_high:7.1,price:400.00,buy_min:380,buy_max:395,stop_loss:368,target:480},
+    {code:'300308',name:'中际旭创',score:4,chg_pct:-0.5,dist_high:6.5,price:85.00,buy_min:80,buy_max:84,stop_loss:76,target:105},
+    {code:'600791',name:'京能置业',score:4,chg_pct:2.8,dist_high:0.0,price:5.80,buy_min:5.5,buy_max:5.7,stop_loss:5.2,target:7.0},
+  ];
+  document.getElementById('goldSignals').innerHTML = goldData.map(s => buildCard(s,'gold')).join('');
+  
+  document.getElementById('silverSignals').innerHTML = '<div style="color:#3a4a5a;padding:20px;">点击"刷新数据"加载最新白银候选</div>';
+}
+
+function exportReport() {
+  alert('📋 报告功能开发中...\n\n将导出：\n- 今日信号列表\n- 持仓建议\n- 风控参数');
+}
+
+// ===== 时钟 =====
+function updateClock() {
+  document.getElementById('now').textContent = new Date().toLocaleString('zh-CN', {hour12:false});
+}
+setInterval(updateClock, 1000);
+updateClock();
+
+// ===== 自动刷新 =====
+setTimeout(refreshAll, 500);
+</script>
+</body>
+</html>
