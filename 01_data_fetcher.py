@@ -115,15 +115,17 @@ def save_kline(code, df):
 # ========== 股票列表 ==========
 def get_stock_list_baostock():
     """用baostock获取全市场A股列表"""
-    rs = bs.query_all_stock(day=datetime.now().strftime("%Y-%m-%d"))
+    rs = bs.query_all_stock(day=((lambda d: d - timedelta(days=3 if d.weekday() == 0 else 2 if d.weekday() == 6 else 1))(datetime.now())).strftime("%Y-%m-%d"))
     stocks = []
     while rs.next():
         row = rs.get_row_data()
-        code, name, status = row[0], row[1], row[2]
-        # 只保留正常交易的A股
-        if status == '1' and (code.startswith('sh.6') or code.startswith('sz.00') 
-                               or code.startswith('sz.30') or code.startswith('sz.002')
-                               or code.startswith('sh.688')):
+        code, status, name = row[0], row[2], row[1]
+        num_code = code.split(".")[1]
+        if name == '1' and (
+            (code.startswith('sh.6') and num_code[1] != '0') or
+            code.startswith('sh.688') or
+            (code.startswith('sz.') and num_code[0] in ['0','2','3'])
+        ):
             stocks.append({
                 'code': code.replace('sh.','').replace('sz.',''),
                 'market': 'sh' if code.startswith('sh') else 'sz',

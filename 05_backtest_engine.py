@@ -7,10 +7,12 @@ import sqlite3, numpy as np, pandas as pd, json, time
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import List, Dict, Tuple
+import importlib
 import sys
-
 sys.path.insert(0, str(Path(__file__).parent))
-from 03_risk_manager import RiskManager, KellySizer
+risk_mod = importlib.import_module("03_risk_manager")
+RiskManager = risk_mod.RiskManager
+KellySizer = risk_mod.KellySizer
 
 BASE_DIR = Path.home() / "SEPA_Quant_System_Pro"
 DB_PATH  = BASE_DIR / "data" / "stocks.db"

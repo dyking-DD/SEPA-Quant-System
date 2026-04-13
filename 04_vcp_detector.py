@@ -241,4 +241,4 @@ if __name__ == "__main__":
         for code in test_codes:
             r = identify_vcp(code)
             status = "VCP ✅" if r['is_vcp'] else "非VCP"
-            print(f"  {code}: 评分={r['vcp_score']:>3}/100  {status}  量缩={r['volume_decay']:.0%}")
+            print(f"  {code}: 评分={r['vcp_score']:>3}/100  {status}  量缩={r.get('volume_decay', 0):.0%}")
