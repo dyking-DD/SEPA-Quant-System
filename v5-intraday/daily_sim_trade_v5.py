@@ -96,25 +96,39 @@ def to_sina_code(code):
 
 
 def get_all_astocks():
-    """从东方财富获取全A股列表（含行业分类+实时行情）"""
-    url = ('https://push2.eastmoney.com/api/qt/clist/get?'
-           'pn=1&pz=6000&po=1&np=1&fltt=2&invt=2&fid=f3&'
-           'fs=m:0+t:6,m:0+t:80,m:1+t:2,m:1+t:23,m:0+t:81&'
-           'fields=f2,f3,f4,f6,f7,f8,f12,f14,f15,f16,f17,f18,f100')
+    """从东方财富获取全A股列表（含行业分类+实时行情），分页获取"""
+    base_url = ('https://push2.eastmoney.com/api/qt/clist/get?'
+                'po=1&np=1&fltt=2&invt=2&fid=f3&'
+                'fs=m:0+t:6+f:!2,m:0+t:80+f:!2,m:1+t:2+f:!2,m:1+t:23+f:!2,m:0+t:81+f:!2&'
+                'fields=f2,f3,f4,f6,f7,f8,f12,f14,f15,f16,f17,f18,f100')
 
     headers = {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-        'Referer': 'https://quote.eastmoney.com/'
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Referer': 'https://quote.eastmoney.com/center/gridlist.html'
     }
 
     try:
-        r = requests.get(url, headers=headers, timeout=15)
-        data = r.json()
-        if not data.get('data') or not data['data'].get('diff'):
-            return []
+        all_items = []
+        for pn in range(1, 150):  # 最多150页×100条=15000只
+            url = f'{base_url}&pn={pn}&pz=100'
+            try:
+                r = requests.get(url, headers=headers, timeout=15)
+                data = r.json()
+            except Exception:
+                continue
+            if not data or not data.get('data'):
+                continue
+            items = data['data'].get('diff', [])
+            if not items:
+                break
+            all_items.extend(items)
+            time.sleep(0.03)
+            # 提前退出：已获取足够
+            if len(all_items) >= data['data'].get('total', 99999):
+                break
 
         stocks = []
-        for item in data['data']['diff']:
+        for item in all_items:
             code = str(item.get('f12', ''))
             name = item.get('f14', '')
             price = item.get('f2', 0)
