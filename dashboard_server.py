@@ -5,7 +5,7 @@ SEPA Dashboard Server v5 - 修复版
 修复内容：
 1. dropna(subset=['ma50','ma200']) 不再吃数据
 2. len(df) < 50 门槛，不再跳票
-3. 读 kline_daily 表（实际有数据的表名）
+3. 读 daily_kline 表（实际有数据的表名）
 4. 完整 SEPA 评分 + 买卖建议
 """
 
@@ -131,7 +131,7 @@ def get_sepa_data():
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
 
-    c.execute("SELECT code FROM focus_codes ORDER BY seq")
+    c.execute("SELECT code FROM focus_codes ")
     codes = [row[0] for row in c.fetchall()]
 
     gold = []  # 金牌候选
@@ -140,7 +140,7 @@ def get_sepa_data():
     for code in codes:
         c.execute("""
             SELECT date, open, close, high, low, volume
-            FROM kline_daily
+            FROM daily_kline
             WHERE code=? ORDER BY date
         """, (code,))
         rows = c.fetchall()

@@ -1,353 +1,615 @@
-<!DOCTYPE html>
-<html lang="zh">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>A股量化看板 | SEPA Pro</title>
-<style>
-* { margin:0; padding:0; box-sizing:border-box; }
-body { 
-  background:#0a0e1a; color:#e0e6ed; font-family:'PingFang SC','Helvetica Neue',Arial,sans-serif;
-  min-height:100vh; overflow-x:hidden;
-}
-
-.header {
-  background:linear-gradient(135deg,#1a1f35 0%,#0d1225 100%);
-  border-bottom:1px solid #1e2a45;
-  padding:20px 40px;
-  display:flex; justify-content:space-between; align-items:center;
-}
-.header h1 { font-size:22px; color:#5ba4f5; font-weight:600; letter-spacing:1px; }
-.header h1 span { color:#8bc34a; }
-.header .time { color:#8899aa; font-size:13px; }
-.header .badge { 
-  background:#1e3a5f; color:#5ba4f5; padding:6px 16px; border-radius:20px;
-  font-size:12px; border:1px solid #2a4a70;
-}
-
-.stats-bar {
-  display:grid; grid-template-columns:repeat(4,1fr); gap:20px;
-  padding:24px 40px;
-}
-.stat-card {
-  background:#111827; border:1px solid #1e2a45; border-radius:12px;
-  padding:20px 24px; text-align:center;
-}
-.stat-card .label { font-size:11px; color:#5a6a7a; text-transform:uppercase; letter-spacing:1px; margin-bottom:8px; }
-.stat-card .value { font-size:28px; font-weight:700; }
-.stat-card .sub { font-size:11px; color:#5a7a5a; margin-top:4px; }
-.green { color:#4ade80; }
-.red { color:#f87171; }
-.blue { color:#60a5fa; }
-.yellow { color:#fbbf24; }
-
-.content { padding:0 40px 40px; }
-
-.section-title {
-  font-size:14px; color:#5a6a7a; text-transform:uppercase; letter-spacing:2px;
-  margin:28px 0 16px; border-left:3px solid #5ba4f5; padding-left:12px;
-}
-
-.signals-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(340px,1fr)); gap:16px; }
-
-.signal-card {
-  background:#111827; border:1px solid #1e2a45; border-radius:12px;
-  padding:20px 24px; position:relative; overflow:hidden;
-  transition:border-color 0.2s,transform 0.2s;
-}
-.signal-card:hover { border-color:#2a4a80; transform:translateY(-2px); }
-
-.signal-card.gold { border-left:4px solid #fbbf24; }
-.signal-card.silver { border-left:4px solid #94a3b8; }
-.signal-card.out { border-left:4px solid #475569; }
-.signal-card .tag {
-  position:absolute; top:16px; right:16px;
-  padding:3px 10px; border-radius:10px; font-size:11px; font-weight:600;
-}
-.tag-gold { background:#1a2a0a; color:#fbbf24; }
-.tag-silver { background:#1a1a25; color:#94a3b8; }
-.tag-out { background:#1a1a25; color:#475569; }
-
-.signal-card .name { font-size:16px; font-weight:600; color:#e0e6ed; margin-bottom:4px; }
-.signal-card .code { font-size:11px; color:#4a5a6a; margin-bottom:14px; }
-.signal-card .metrics { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; }
-.signal-card .metric { text-align:center; }
-.signal-card .metric .mval { font-size:15px; font-weight:600; }
-.signal-card .metric .mlbl { font-size:10px; color:#4a5a6a; margin-top:2px; }
-
-.buy-zone {
-  background:#0a1f10; border:1px solid #1a3a1a; border-radius:8px;
-  padding:14px 20px; margin-top:14px; display:flex; justify-content:space-between; align-items:center;
-}
-.buy-zone .price { font-size:14px; color:#4a6a4a; }
-.buy-zone .range { font-size:13px; color:#4ade80; font-weight:600; }
-.buy-zone .btn-buy {
-  background:#166534; color:#4ade80; border:none; padding:8px 20px;
-  border-radius:8px; font-size:13px; font-weight:600; cursor:pointer;
-  transition:background 0.2s;
-}
-.buy-zone .btn-buy:hover { background:#14532d; }
-
-.market-row { display:grid; grid-template-columns:repeat(auto-fill,minmax(160px,1fr)); gap:12px; margin-bottom:28px; }
-.market-card {
-  background:#111827; border:1px solid #1e2a45; border-radius:10px;
-  padding:14px 18px;
-}
-.market-card .mc-name { font-size:11px; color:#5a6a7a; margin-bottom:6px; }
-.market-card .mc-val { font-size:20px; font-weight:700; }
-.market-card .mc-chg { font-size:12px; margin-top:2px; }
-
-.refresh-row {
-  text-align:center; padding:20px;
-  color:#3a4a5a; font-size:12px;
-}
-.refresh-btn {
-  background:#1e2a45; color:#5ba4f5; border:1px solid #2a4a70;
-  padding:8px 20px; border-radius:8px; cursor:pointer; font-size:12px;
-  transition:all 0.2s;
-}
-.refresh-btn:hover { background:#2a3a60; }
-
-.progress-bar { 
-  width:100%; height:3px; background:#1a2030; border-radius:2px; margin-top:20px; 
-}
-.progress-fill { height:100%; background:linear-gradient(90deg,#5ba4f5,#8bc34a); border-radius:2px; transition:width 1s; }
-.status-bar { font-size:11px; color:#3a4a5a; margin-top:6px; text-align:right; }
-</style>
-</head>
-<body>
-
-<div class="header">
-  <h1>🦞 <span>SEPA</span> 量化看板 Pro</h1>
-  <div style="display:flex;align-items:center;gap:16px;">
-    <span class="time" id="now">加载中...</span>
-    <span class="badge" id="marketStatus">⏳ 盘中分析中</span>
-  </div>
-</div>
-
-<div class="stats-bar">
-  <div class="stat-card">
-    <div class="label">金牌候选</div>
-    <div class="value green" id="goldCount">-</div>
-    <div class="sub">SEPA 4/4</div>
-  </div>
-  <div class="stat-card">
-    <div class="label">白银候选</div>
-    <div class="value blue" id="silverCount">-</div>
-    <div class="sub">SEPA 2-3/4</div>
-  </div>
-  <div class="stat-card">
-    <div class="label">SEPA胜率</div>
-    <div class="value yellow" id="winRate">-</div>
-    <div class="sub">累计回测</div>
-  </div>
-  <div class="stat-card">
-    <div class="label">盈亏比</div>
-    <div class="value green" id="profitRatio">-</div>
-    <div class="sub">平均盈/平均亏</div>
-  </div>
-</div>
-
-<div class="content">
-  <div class="section-title">📊 今日市场情绪</div>
-  <div class="market-row" id="marketRow">
-    <div class="market-card"><div class="mc-name">上证指数</div><div class="mc-val" id="sh000001">-</div><div class="mc-chg" id="sh000001chg">-</div></div>
-    <div class="market-card"><div class="mc-name">深证成指</div><div class="mc-val" id="sz399001">-</div><div class="mc-chg" id="sz399001chg">-</div></div>
-    <div class="market-card"><div class="mc-name">创业板指</div><div class="mc-val" id="sz399006">-</div><div class="mc-chg" id="sz399006chg">-</div></div>
-    <div class="market-card"><div class="mc-name">科创50</div><div class="mc-val" id="sh000688">-</div><div class="mc-chg" id="sh000688chg">-</div></div>
-  </div>
-
-  <div class="section-title">🏆 金牌候选 (SEPA 4/4)</div>
-  <div class="signals-grid" id="goldSignals">
-    <div style="color:#3a4a5a;padding:20px;">⏳ 加载中...</div>
-  </div>
-
-  <div class="section-title">🥈 白银候选 (SEPA 2-3/4)</div>
-  <div class="signals-grid" id="silverSignals">
-    <div style="color:#3a4a5a;padding:20px;">⏳ 加载中...</div>
-  </div>
-
-  <div class="progress-bar">
-    <div class="progress-fill" id="progressFill" style="width:0%"></div>
-  </div>
-  <div class="status-bar" id="statusBar">准备就绪</div>
-
-  <div class="refresh-row">
-    <button class="refresh-btn" onclick="refreshAll()">🔄 刷新数据</button>
-    &nbsp;&nbsp;
-    <button class="refresh-btn" onclick="exportReport()">📋 导出报告</button>
-  </div>
-</div>
-
-<script>
-// ===== 数据刷新 =====
-async function refreshAll() {
-  const pb = document.getElementById('progressFill');
-  const sb = document.getElementById('statusBar');
-  pb.style.width = '10%';
-  
-  try {
-    // 1. 获取指数
-    await fetchMarket();
-    pb.style.width = '30%';
+&lt;!DOCTYPE html&gt;
+&lt;html lang=&quot;zh-CN&quot;&gt;
+&lt;head&gt;
+    &lt;meta charset=&quot;UTF-8&quot;&gt;
+    &lt;title&gt;SEPA 量化看板 Pro&lt;/title&gt;
+    &lt;style&gt;
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: &#x27;Microsoft YaHei&#x27;, sans-serif;
+            background: linear-gradient(135deg, #0f0f1a 0%, #1a1a2e 50%, #16213e 100%);
+            color: #fff;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #3a3a5a;
+        }
+        .header h1 { font-size: 28px; color: #00d4ff; }
+        .header .time { font-size: 12px; color: #888; }
+        
+        /* 控制栏 */
+        .control-bar {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        .control-bar input {
+            padding: 8px 12px;
+            border: 1px solid #3a3a5a;
+            border-radius: 6px;
+            background: rgba(255,255,255,0.1);
+            color: #fff;
+            font-size: 14px;
+            width: 120px;
+        }
+        .control-bar input::placeholder { color: #888; }
+        .control-bar button {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: bold;
+            transition: all 0.2s;
+        }
+        .btn-add { background: #2ed573; color: #000; }
+        .btn-add:hover { background: #26de81; }
+        .btn-del { background: #ff4757; color: #fff; }
+        .btn-del:hover { background: #ff6b7a; }
+        .btn-refresh { background: #00d4ff; color: #000; }
+        .btn-refresh:hover { background: #00a8cc; }
+        
+        /* 指数栏 */
+        .index-bar {
+            display: flex;
+            justify-content: center;
+            gap: 40px;
+            margin-bottom: 25px;
+            padding: 15px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 12px;
+        }
+        .index-item { text-align: center; }
+        .index-item .name { font-size: 12px; color: #888; margin-bottom: 5px; }
+        .index-item .value { font-size: 24px; font-weight: bold; }
+        .index-item .change { font-size: 12px; margin-top: 3px; }
+        .up { color: #ff4757; }
+        .down { color: #2ed573; }
+        
+        /* 统计栏 */
+        .stats-bar {
+            display: flex;
+            justify-content: center;
+            gap: 30px;
+            margin-bottom: 20px;
+            padding: 10px;
+            background: rgba(255,255,255,0.03);
+            border-radius: 8px;
+        }
+        .stat-item { text-align: center; }
+        .stat-item .value { font-size: 24px; font-weight: bold; color: #00d4ff; }
+        .stat-item .label { font-size: 11px; color: #888; }
+        
+        /* 分区标题 */
+        .section-title {
+            font-size: 18px;
+            font-weight: bold;
+            margin: 25px 0 15px 0;
+            padding: 10px 15px;
+            background: rgba(0,212,255,0.1);
+            border-left: 4px solid #00d4ff;
+            border-radius: 0 8px 8px 0;
+        }
+        .section-title.gold { border-left-color: #ffd700; background: rgba(255,215,0,0.1); }
+        .section-title.silver { border-left-color: #c0c0c0; background: rgba(192,192,192,0.1); }
+        .section-title.watchlist { border-left-color: #00d4ff; }
+        
+        /* 股票网格 */
+        .stocks-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+            gap: 15px;
+        }
+        
+        /* 股票卡片 */
+        .stock-card {
+            background: rgba(255,255,255,0.08);
+            border-radius: 12px;
+            padding: 15px;
+            transition: transform 0.2s, box-shadow 0.2s;
+            position: relative;
+        }
+        .stock-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 20px rgba(0,212,255,0.3);
+        }
+        .stock-card.gold { border: 2px solid #ffd700; background: rgba(255,215,0,0.08); }
+        .stock-card.silver { border: 2px solid #c0c0c0; background: rgba(192,192,192,0.08); }
+        .stock-card.buy-signal { border: 2px solid #2ed573; background: rgba(46,213,115,0.1); }
+        .stock-card.sell-signal { border: 2px solid #ff4757; background: rgba(255,71,87,0.1); }
+        .stock-card.alert { border: 2px solid #ffa502; }
+        
+        .stock-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 8px;
+        }
+        .stock-code { font-size: 14px; font-weight: bold; color: #00d4ff; }
+        .stock-name { font-size: 12px; color: #aaa; }
+        
+        /* 删除按钮 */
+        .delete-btn {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            width: 24px;
+            height: 24px;
+            border: none;
+            border-radius: 50%;
+            background: rgba(255,71,87,0.8);
+            color: #fff;
+            font-size: 14px;
+            cursor: pointer;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+        .stock-card:hover .delete-btn { opacity: 1; }
+        .delete-btn:hover { background: #ff4757; }
+        
+        .signal-badge {
+            padding: 3px 8px;
+            border-radius: 5px;
+            font-size: 11px;
+            font-weight: bold;
+        }
+        .signal-badge.gold { background: #ffd700; color: #000; }
+        .signal-badge.silver { background: #c0c0c0; color: #000; }
+        .signal-badge.buy { background: #2ed573; color: #000; }
+        .signal-badge.sell { background: #ff4757; color: #fff; }
+        .signal-badge.hold { background: #666; color: #fff; }
+        
+        .stock-price { font-size: 26px; font-weight: bold; margin: 8px 0; }
+        .stock-change { font-size: 13px; }
+        .stock-hl { font-size: 11px; color: #888; margin-top: 3px; }
+        .turnover { font-size: 11px; color: #888; margin-top: 4px; }
+        .turnover.high { color: #ffa502; font-weight: bold; }
+        
+        .analysis {
+            margin-top: 12px;
+            padding-top: 12px;
+            border-top: 1px solid rgba(255,255,255,0.1);
+            font-size: 11px;
+        }
+        .analysis-row { display: flex; justify-content: space-between; margin-top: 4px; }
+        .analysis-label { color: #888; }
+        .analysis-value { color: #fff; }
+        .analysis-value.profit { color: #2ed573; }
+        .analysis-value.loss { color: #ff4757; }
+        
+        .loading { text-align: center; padding: 40px; color: #888; }
+        .error { text-align: center; padding: 20px; color: #ff4757; }
+        
+        .footer {
+            text-align: center;
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #3a3a5a;
+            font-size: 11px;
+            color: #666;
+        }
+        
+        /* 提示框 */
+        .toast {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 12px 24px;
+            background: rgba(0,0,0,0.8);
+            color: #fff;
+            border-radius: 8px;
+            font-size: 14px;
+            z-index: 1000;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+        .toast.show { opacity: 1; }
+        .toast.success { background: rgba(46,213,115,0.9); }
+        .toast.error { background: rgba(255,71,87,0.9); }
+    &lt;/style&gt;
+&lt;/head&gt;
+&lt;body&gt;
+    &lt;div class=&quot;header&quot;&gt;
+        &lt;div&gt;
+            &lt;h1&gt;SEPA 量化看板 Pro&lt;/h1&gt;
+            &lt;div class=&quot;time&quot; id=&quot;updateTime&quot;&gt;加载中...&lt;/div&gt;
+        &lt;/div&gt;
+        &lt;div class=&quot;control-bar&quot;&gt;
+            &lt;input type=&quot;text&quot; id=&quot;stockCode&quot; placeholder=&quot;股票代码&quot; maxlength=&quot;6&quot;&gt;
+            &lt;button class=&quot;btn-add&quot; onclick=&quot;addStock()&quot;&gt;添加&lt;/button&gt;
+            &lt;button class=&quot;btn-refresh&quot; onclick=&quot;loadAll()&quot;&gt;刷新&lt;/button&gt;
+        &lt;/div&gt;
+    &lt;/div&gt;
     
-    // 2. 获取实时行情
-    await fetchRealtime();
-    pb.style.width = '50%';
+    &lt;div class=&quot;index-bar&quot; id=&quot;indexBar&quot;&gt;
+        &lt;div class=&quot;index-item&quot;&gt;
+            &lt;div class=&quot;name&quot;&gt;上证指数&lt;/div&gt;
+            &lt;div class=&quot;value&quot; id=&quot;shIndex&quot;&gt;--&lt;/div&gt;
+            &lt;div class=&quot;change&quot; id=&quot;shChange&quot;&gt;--&lt;/div&gt;
+        &lt;/div&gt;
+        &lt;div class=&quot;index-item&quot;&gt;
+            &lt;div class=&quot;name&quot;&gt;深证成指&lt;/div&gt;
+            &lt;div class=&quot;value&quot; id=&quot;szIndex&quot;&gt;--&lt;/div&gt;
+            &lt;div class=&quot;change&quot; id=&quot;szChange&quot;&gt;--&lt;/div&gt;
+        &lt;/div&gt;
+        &lt;div class=&quot;index-item&quot;&gt;
+            &lt;div class=&quot;name&quot;&gt;创业板指&lt;/div&gt;
+            &lt;div class=&quot;value&quot; id=&quot;cybIndex&quot;&gt;--&lt;/div&gt;
+            &lt;div class=&quot;change&quot; id=&quot;cybChange&quot;&gt;--&lt;/div&gt;
+        &lt;/div&gt;
+        &lt;div class=&quot;index-item&quot;&gt;
+            &lt;div class=&quot;name&quot;&gt;科创50&lt;/div&gt;
+            &lt;div class=&quot;value&quot; id=&quot;kcIndex&quot;&gt;--&lt;/div&gt;
+            &lt;div class=&quot;change&quot; id=&quot;kcChange&quot;&gt;--&lt;/div&gt;
+        &lt;/div&gt;
+    &lt;/div&gt;
     
-    // 3. 获取SEPA评分
-    await fetchSEPA();
-    pb.style.width = '90%';
+    &lt;div class=&quot;stats-bar&quot; id=&quot;statsBar&quot;&gt;
+        &lt;div class=&quot;stat-item&quot;&gt;
+            &lt;div class=&quot;value&quot; id=&quot;goldCount&quot;&gt;0&lt;/div&gt;
+            &lt;div class=&quot;label&quot;&gt;金牌候选&lt;/div&gt;
+        &lt;/div&gt;
+        &lt;div class=&quot;stat-item&quot;&gt;
+            &lt;div class=&quot;value&quot; id=&quot;silverCount&quot;&gt;0&lt;/div&gt;
+            &lt;div class=&quot;label&quot;&gt;白银候选&lt;/div&gt;
+        &lt;/div&gt;
+        &lt;div class=&quot;stat-item&quot;&gt;
+            &lt;div class=&quot;value&quot; id=&quot;buyCount&quot;&gt;0&lt;/div&gt;
+            &lt;div class=&quot;label&quot;&gt;买入信号&lt;/div&gt;
+        &lt;/div&gt;
+        &lt;div class=&quot;stat-item&quot;&gt;
+            &lt;div class=&quot;value&quot; id=&quot;alertCount&quot;&gt;0&lt;/div&gt;
+            &lt;div class=&quot;label&quot;&gt;高换手&lt;/div&gt;
+        &lt;/div&gt;
+        &lt;div class=&quot;stat-item&quot;&gt;
+            &lt;div class=&quot;value&quot; id=&quot;totalCount&quot;&gt;0&lt;/div&gt;
+            &lt;div class=&quot;label&quot;&gt;自选股&lt;/div&gt;
+        &lt;/div&gt;
+    &lt;/div&gt;
     
-    pb.style.width = '100%';
-    sb.textContent = '✅ 数据更新完成 ' + new Date().toLocaleTimeString('zh-CN');
+    &lt;div id=&quot;goldSection&quot;&gt;&lt;/div&gt;
+    &lt;div id=&quot;silverSection&quot;&gt;&lt;/div&gt;
+    &lt;div id=&quot;watchlistSection&quot;&gt;&lt;/div&gt;
     
-    // 更新市场状态
-    const shChg = parseFloat(document.getElementById('sh000001chg').textContent) || 0;
-    const status = document.getElementById('marketStatus');
-    if (shChg > 1) { status.textContent = '🚀 强势上涨'; status.style.background='#1a3a0a'; status.style.color='#4ade80'; }
-    else if (shChg > 0) { status.textContent = '📈 小幅上涨'; status.style.background='#1a2a1a'; status.style.color='#86efac'; }
-    else if (shChg < -1) { status.textContent = '⚠️ 大幅下跌'; status.style.background='#3a1a1a'; status.style.color='#f87171'; }
-    else if (shChg < 0) { status.textContent = '📉 小幅下跌'; status.style.background='#2a1a1a'; status.style.color='#fca5a5'; }
-    else { status.textContent = '➡️ 震荡'; status.style.background='#1e3a5f'; status.style.color='#5ba4f5'; }
+    &lt;div class=&quot;footer&quot;&gt;数据来源：东方财富 | SEPA 量化分析 | 自选股自动保存到本地&lt;/div&gt;
     
-  } catch(e) {
-    sb.textContent = '❌ 更新失败: ' + e.message;
-  }
-}
+    &lt;div class=&quot;toast&quot; id=&quot;toast&quot;&gt;&lt;/div&gt;
 
-async function fetchMarket() {
-  try {
-    const resp = await fetch('/api/market');
-    const data = await resp.json();
-    const indices = ['sh000001','sz399001','sz399006','sh000688'];
-    indices.forEach(code => {
-      if (data[code]) {
-        document.getElementById(code).textContent = data[code].price;
-        const chgEl = document.getElementById(code + 'chg');
-        const chg = data[code].chg_pct;
-        chgEl.textContent = (chg >= 0 ? '+' : '') + chg.toFixed(2) + '%';
-        chgEl.style.color = chg >= 0 ? '#4ade80' : '#f87171';
-      }
-    });
-  } catch(e) {
-    // 后备：使用模拟数据
-    ['sh000001','sz399001','sz399006','sh000688'].forEach((code,i) => {
-      const vals = [3280, 9870, 1980, 780];
-      const chgs = [0.5, 0.3, -0.2, 0.8];
-      document.getElementById(code).textContent = vals[i];
-      const el = document.getElementById(code+'chg');
-      el.textContent = '+' + chgs[i] + '%';
-      el.style.color = '#4ade80';
-    });
-  }
-}
+    &lt;script&gt;
+        const STORAGE_KEY = &#x27;sepa_watchlist&#x27;;
+        const TURNOVER_THRESHOLD = 3.0;
+        
+        // 默认自选股
+        const DEFAULT_WATCHLIST = [
+            { code: &#x27;300508&#x27;, name: &#x27;维宏股份&#x27; },
+            { code: &#x27;688345&#x27;, name: &#x27;博力威&#x27; },
+            { code: &#x27;688400&#x27;, name: &#x27;凌云光&#x27; },
+            { code: &#x27;688206&#x27;, name: &#x27;概伦电子&#x27; },
+            { code: &#x27;688153&#x27;, name: &#x27;唯捷创芯&#x27; },
+            { code: &#x27;688138&#x27;, name: &#x27;清溢光电&#x27; },
+            { code: &#x27;688135&#x27;, name: &#x27;利扬芯片&#x27; },
+            { code: &#x27;688380&#x27;, name: &#x27;中微半导&#x27; },
+            { code: &#x27;688158&#x27;, name: &#x27;优刻得-W&#x27; },
+            { code: &#x27;688021&#x27;, name: &#x27;奥福科技&#x27; },
+            { code: &#x27;600868&#x27;, name: &#x27;梅雁吉祥&#x27; },
+            { code: &#x27;688041&#x27;, name: &#x27;海光信息&#x27; },
+            { code: &#x27;300308&#x27;, name: &#x27;中际旭创&#x27; },
+            { code: &#x27;688006&#x27;, name: &#x27;杭可科技&#x27; }
+        ];
+        
+        // 加载自选股
+        function loadWatchlist() {
+            const saved = localStorage.getItem(STORAGE_KEY);
+            if (saved) {
+                return JSON.parse(saved);
+            }
+            return DEFAULT_WATCHLIST;
+        }
+        
+        // 保存自选股
+        function saveWatchlist(list) {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
+        }
+        
+        let WATCHLIST = loadWatchlist();
+        
+        // 指数代码
+        const INDEX_CODES = {
+            &#x27;sh000001&#x27;: { name: &#x27;上证指数&#x27;, id: &#x27;sh&#x27; },
+            &#x27;sz399001&#x27;: { name: &#x27;深证成指&#x27;, id: &#x27;sz&#x27; },
+            &#x27;sz399006&#x27;: { name: &#x27;创业板指&#x27;, id: &#x27;cyb&#x27; },
+            &#x27;sh000688&#x27;: { name: &#x27;科创50&#x27;, id: &#x27;kc&#x27; }
+        };
 
-async function fetchRealtime() {
-  try {
-    await fetch('/api/realtime');
-  } catch(e) { /* 使用缓存 */ }
-}
+        // 显示提示
+        function showToast(msg, type = &#x27;info&#x27;) {
+            const toast = document.getElementById(&#x27;toast&#x27;);
+            toast.textContent = msg;
+            toast.className = &#x27;toast show &#x27; + type;
+            setTimeout(() =&gt; toast.className = &#x27;toast&#x27;, 2000);
+        }
 
-async function fetchSEPA() {
-  try {
-    const resp = await fetch('/api/sepa');
-    const data = await resp.json();
-    
-    document.getElementById('goldCount').textContent = data.goldCount || 0;
-    document.getElementById('silverCount').textContent = data.silverCount || 0;
-    document.getElementById('winRate').textContent = (data.winRate || 0) + '%';
-    document.getElementById('profitRatio').textContent = (data.profitRatio || 0).toFixed(2);
-    
-    // 渲染金牌
-    const goldDiv = document.getElementById('goldSignals');
-    if (data.gold && data.gold.length > 0) {
-      goldDiv.innerHTML = data.gold.map(s => buildCard(s, 'gold')).join('');
-    } else {
-      goldDiv.innerHTML = '<div style="color:#3a4a5a;padding:20px;">暂无金牌候选</div>';
-    }
-    
-    // 渲染白银
-    const silverDiv = document.getElementById('silverSignals');
-    if (data.silver && data.silver.length > 0) {
-      silverDiv.innerHTML = data.silver.slice(0, 12).map(s => buildCard(s, 'silver')).join('');
-    } else {
-      silverDiv.innerHTML = '<div style="color:#3a4a5a;padding:20px;">暂无白银候选</div>';
-    }
-  } catch(e) {
-    // 使用本地数据
-    useLocalData();
-  }
-}
+        // 添加股票
+        async function addStock() {
+            const input = document.getElementById(&#x27;stockCode&#x27;);
+            const code = input.value.trim();
+            
+            if (!code || code.length !== 6 || !/^\d+$/.test(code)) {
+                showToast(&#x27;请输入6位数字代码&#x27;, &#x27;error&#x27;);
+                return;
+            }
+            
+            if (WATCHLIST.find(s =&gt; s.code === code)) {
+                showToast(&#x27;该股票已在自选列表&#x27;, &#x27;error&#x27;);
+                return;
+            }
+            
+            // 获取股票名称
+            const quote = await fetchQuote(code);
+            if (!quote) {
+                showToast(&#x27;无法获取股票信息，请检查代码&#x27;, &#x27;error&#x27;);
+                return;
+            }
+            
+            WATCHLIST.push({ code: quote.code, name: quote.name });
+            saveWatchlist(WATCHLIST);
+            input.value = &#x27;&#x27;;
+            showToast(`已添加 ${quote.name}(${quote.code})`, &#x27;success&#x27;);
+            loadAll();
+        }
 
-function buildCard(s, type) {
-  const tag = type === 'gold' ? '🏆 金牌' : '🥈 白银';
-  const tagClass = type === 'gold' ? 'tag-gold' : 'tag-silver';
-  const score = s.score || 0;
-  const scoreColor = score >= 4 ? '#fbbf24' : score >= 3 ? '#60a5fa' : '#94a3b8';
-  
-  return `
-  <div class="signal-card ${type}">
-    <div class="tag ${tagClass}">${tag}</div>
-    <div class="name">${s.name || s.code}</div>
-    <div class="code">${s.code}</div>
-    <div class="metrics">
-      <div class="metric">
-        <div class="mval" style="color:${scoreColor}">${score}/4</div>
-        <div class="mlbl">SEPA评分</div>
-      </div>
-      <div class="metric">
-        <div class="mval ${s.chg_pct>=0?'green':'red'}">${(s.chg_pct||0)>=0?'+':''}${(s.chg_pct||0).toFixed(2)}%</div>
-        <div class="mlbl">今日涨跌</div>
-      </div>
-      <div class="metric">
-        <div class="mval yellow">${(s.dist_high||0).toFixed(1)}%</div>
-        <div class="mlbl">距高点</div>
-      </div>
-    </div>
-    <div class="buy-zone">
-      <div>
-        <div class="price">现价: ¥${(s.price||'--')}</div>
-        <div class="range">买入区间: ¥${(s.buy_min||'--')} ~ ¥${(s.buy_max||'--')}</div>
-      </div>
-      <div>
-        <div class="range" style="font-size:12px;color:#f87171">止损: ¥${(s.stop_loss||'--')}</div>
-        <div class="range" style="font-size:12px;color:#4ade80">目标: ¥${(s.target||'--')}</div>
-      </div>
-    </div>
-  </div>`;
-}
+        // 删除股票
+        function deleteStock(code) {
+            const stock = WATCHLIST.find(s =&gt; s.code === code);
+            if (confirm(`确定删除 ${stock.name}(${code})？`)) {
+                WATCHLIST = WATCHLIST.filter(s =&gt; s.code !== code);
+                saveWatchlist(WATCHLIST);
+                showToast(`已删除 ${stock.name}(${code})`, &#x27;success&#x27;);
+                loadAll();
+            }
+        }
 
-function useLocalData() {
-  // 默认数据（无API时显示）
-  document.getElementById('goldCount').textContent = '3';
-  document.getElementById('silverCount').textContent = '25';
-  document.getElementById('winRate').textContent = '35.6%';
-  document.getElementById('profitRatio').textContent = '1.93';
-  
-  const goldData = [
-    {code:'300750',name:'宁德时代',score:4,chg_pct:1.2,dist_high:7.1,price:400.00,buy_min:380,buy_max:395,stop_loss:368,target:480},
-    {code:'300308',name:'中际旭创',score:4,chg_pct:-0.5,dist_high:6.5,price:85.00,buy_min:80,buy_max:84,stop_loss:76,target:105},
-    {code:'600791',name:'京能置业',score:4,chg_pct:2.8,dist_high:0.0,price:5.80,buy_min:5.5,buy_max:5.7,stop_loss:5.2,target:7.0},
-  ];
-  document.getElementById('goldSignals').innerHTML = goldData.map(s => buildCard(s,'gold')).join('');
-  
-  document.getElementById('silverSignals').innerHTML = '<div style="color:#3a4a5a;padding:20px;">点击"刷新数据"加载最新白银候选</div>';
-}
+        // SEPA 分析
+        function analyzeSEPA(quote) {
+            const price = parseFloat(quote.price);
+            const changePct = parseFloat(quote.changePct);
+            const turnover = parseFloat(quote.turnover);
+            
+            let signal = &#x27;hold&#x27;;
+            let reason = &#x27;&#x27;;
+            let sepaScore = 0;
+            let buyPrice = null, stopLoss = null, target = null;
+            
+            if (changePct &gt; 0) sepaScore++;
+            if (turnover &gt; 3) sepaScore++;
+            if (turnover &gt; 5) sepaScore++;
+            if (changePct &gt; 3) sepaScore++;
+            
+            if (changePct &gt; 3 &amp;&amp; turnover &gt; 5) {
+                signal = &#x27;buy&#x27;;
+                reason = &#x27;放量突破&#x27;;
+                buyPrice = (price * 1.01).toFixed(2);
+                stopLoss = (price * 0.92).toFixed(2);
+                target = (price * 1.15).toFixed(2);
+            } else if (changePct &gt; 5 &amp;&amp; turnover &gt; 3) {
+                signal = &#x27;buy&#x27;;
+                reason = &#x27;强势上涨&#x27;;
+                buyPrice = (price * 1.005).toFixed(2);
+                stopLoss = (price * 0.93).toFixed(2);
+                target = (price * 1.12).toFixed(2);
+            } else if (changePct &gt; 0 &amp;&amp; turnover &gt; 8) {
+                signal = &#x27;buy&#x27;;
+                reason = &#x27;高换手关注&#x27;;
+                buyPrice = price.toFixed(2);
+                stopLoss = (price * 0.95).toFixed(2);
+                target = (price * 1.08).toFixed(2);
+            } else if (changePct &lt; -5) {
+                signal = &#x27;sell&#x27;;
+                reason = &#x27;大幅下跌&#x27;;
+            } else if (changePct &lt; -3 &amp;&amp; turnover &gt; 5) {
+                signal = &#x27;sell&#x27;;
+                reason = &#x27;放量下跌&#x27;;
+            }
+            
+            if (changePct &gt;= 9.9) {
+                signal = &#x27;hold&#x27;;
+                reason = &#x27;涨停观望&#x27;;
+                sepaScore = 4;
+            }
+            
+            return { signal, reason, sepaScore, buyPrice, stopLoss, target };
+        }
 
-function exportReport() {
-  alert('📋 报告功能开发中...\n\n将导出：\n- 今日信号列表\n- 持仓建议\n- 风控参数');
-}
+        async function fetchQuote(code) {
+            const secid = code.startsWith(&#x27;6&#x27;) || code.startsWith(&#x27;000&#x27;) ? `1.${code}` : `0.${code}`;
+            const url = `https://push2.eastmoney.com/api/qt/stock/get?secid=${secid}&amp;fields=f57,f58,f43,f107,f170,f168,f44,f51,f46`;
+            try {
+                const resp = await fetch(url);
+                const data = await resp.json();
+                if (data.data &amp;&amp; data.data.f43 !== null) {
+                    return {
+                        code: data.data.f57,
+                        name: data.data.f58,
+                        price: (data.data.f43 / 100).toFixed(2),
+                        change: (data.data.f107 / 100).toFixed(2),
+                        changePct: (data.data.f170 / 100).toFixed(2),
+                        turnover: (data.data.f168 / 100).toFixed(2),
+                        high: (data.data.f44 / 100).toFixed(2),
+                        low: (data.data.f51 / 100).toFixed(2),
+                        prevClose: (data.data.f46 / 100).toFixed(2)
+                    };
+                }
+            } catch (e) {}
+            return null;
+        }
 
-// ===== 时钟 =====
-function updateClock() {
-  document.getElementById('now').textContent = new Date().toLocaleString('zh-CN', {hour12:false});
-}
-setInterval(updateClock, 1000);
-updateClock();
+        async function fetchIndex(code) {
+            const secid = code.startsWith(&#x27;sh&#x27;) ? `1.${code.substring(2)}` : `0.${code.substring(2)}`;
+            const url = `https://push2.eastmoney.com/api/qt/stock/get?secid=${secid}&amp;fields=f43,f107,f170`;
+            try {
+                const resp = await fetch(url);
+                const data = await resp.json();
+                if (data.data &amp;&amp; data.data.f43 !== null) {
+                    return {
+                        value: (data.data.f43 / 100).toFixed(2),
+                        changePct: (data.data.f170 / 100).toFixed(2)
+                    };
+                }
+            } catch (e) {}
+            return null;
+        }
 
-// ===== 自动刷新 =====
-setTimeout(refreshAll, 500);
-</script>
-</body>
-</html>
+        function renderCard(quote, analysis, type = &#x27;watchlist&#x27;) {
+            const isUp = parseFloat(quote.changePct) &gt;= 0;
+            const isHighTurnover = parseFloat(quote.turnover) &gt; TURNOVER_THRESHOLD;
+            
+            let cardClass = &#x27;stock-card&#x27;;
+            let badge = &#x27;&#x27;;
+            
+            if (type === &#x27;gold&#x27;) {
+                cardClass += &#x27; gold&#x27;;
+                badge = &#x27;&lt;span class=&quot;signal-badge gold&quot;&gt;金牌&lt;/span&gt;&#x27;;
+            } else if (type === &#x27;silver&#x27;) {
+                cardClass += &#x27; silver&#x27;;
+                badge = &#x27;&lt;span class=&quot;signal-badge silver&quot;&gt;白银&lt;/span&gt;&#x27;;
+            } else {
+                if (analysis.signal === &#x27;buy&#x27;) {
+                    cardClass += &#x27; buy-signal&#x27;;
+                    badge = &#x27;&lt;span class=&quot;signal-badge buy&quot;&gt;买入&lt;/span&gt;&#x27;;
+                } else if (analysis.signal === &#x27;sell&#x27;) {
+                    cardClass += &#x27; sell-signal&#x27;;
+                    badge = &#x27;&lt;span class=&quot;signal-badge sell&quot;&gt;卖出&lt;/span&gt;&#x27;;
+                } else {
+                    badge = &#x27;&lt;span class=&quot;signal-badge hold&quot;&gt;观望&lt;/span&gt;&#x27;;
+                }
+                if (isHighTurnover &amp;&amp; analysis.signal === &#x27;hold&#x27;) cardClass += &#x27; alert&#x27;;
+            }
+            
+            return `
+                &lt;div class=&quot;${cardClass}&quot;&gt;
+                    &lt;button class=&quot;delete-btn&quot; onclick=&quot;deleteStock(&#x27;${quote.code}&#x27;)&quot; title=&quot;删除&quot;&gt;×&lt;/button&gt;
+                    &lt;div class=&quot;stock-header&quot;&gt;
+                        &lt;div&gt;
+                            &lt;div class=&quot;stock-code&quot;&gt;${quote.code}&lt;/div&gt;
+                            &lt;div class=&quot;stock-name&quot;&gt;${quote.name}&lt;/div&gt;
+                        &lt;/div&gt;
+                        ${badge}
+                    &lt;/div&gt;
+                    &lt;div class=&quot;stock-price ${isUp ? &#x27;up&#x27; : &#x27;down&#x27;}&quot;&gt;${quote.price}&lt;/div&gt;
+                    &lt;div class=&quot;stock-change ${isUp ? &#x27;up&#x27; : &#x27;down&#x27;}&quot;&gt;${isUp ? &#x27;+&#x27; : &#x27;&#x27;}${quote.changePct}%&lt;/div&gt;
+                    &lt;div class=&quot;stock-hl&quot;&gt;H:${quote.high} L:${quote.low}&lt;/div&gt;
+                    &lt;div class=&quot;turnover ${isHighTurnover ? &#x27;high&#x27; : &#x27;&#x27;}&quot;&gt;换手:${quote.turnover}%${isHighTurnover ? &#x27; ⚠️&#x27; : &#x27;&#x27;}&lt;/div&gt;
+                    ${type === &#x27;watchlist&#x27; &amp;&amp; analysis.reason ? `
+                    &lt;div class=&quot;analysis&quot;&gt;
+                        &lt;div class=&quot;analysis-row&quot;&gt;
+                            &lt;span class=&quot;analysis-label&quot;&gt;分析:&lt;/span&gt;
+                            &lt;span class=&quot;analysis-value&quot;&gt;${analysis.reason}&lt;/span&gt;
+                        &lt;/div&gt;
+                        ${analysis.buyPrice ? `
+                        &lt;div class=&quot;analysis-row&quot;&gt;
+                            &lt;span class=&quot;analysis-label&quot;&gt;买入:&lt;/span&gt;
+                            &lt;span class=&quot;analysis-value&quot;&gt;${analysis.buyPrice}&lt;/span&gt;
+                        &lt;/div&gt;
+                        &lt;div class=&quot;analysis-row&quot;&gt;
+                            &lt;span class=&quot;analysis-label&quot;&gt;止损:&lt;/span&gt;
+                            &lt;span class=&quot;analysis-value loss&quot;&gt;${analysis.stopLoss}&lt;/span&gt;
+                        &lt;/div&gt;
+                        &lt;div class=&quot;analysis-row&quot;&gt;
+                            &lt;span class=&quot;analysis-label&quot;&gt;目标:&lt;/span&gt;
+                            &lt;span class=&quot;analysis-value profit&quot;&gt;${analysis.target}&lt;/span&gt;
+                        &lt;/div&gt;
+                        ` : &#x27;&#x27;}
+                    &lt;/div&gt;
+                    ` : &#x27;&#x27;}
+                &lt;/div&gt;
+            `;
+        }
+
+        async function loadAll() {
+            // 加载指数
+            for (const [code, info] of Object.entries(INDEX_CODES)) {
+                const index = await fetchIndex(code);
+                if (index) {
+                    const isUp = parseFloat(index.changePct) &gt;= 0;
+                    document.getElementById(`${info.id}Index`).textContent = index.value;
+                    const changeEl = document.getElementById(`${info.id}Change`);
+                    changeEl.textContent = `${isUp ? &#x27;+&#x27; : &#x27;&#x27;}${index.changePct}%`;
+                    changeEl.className = `change ${isUp ? &#x27;up&#x27; : &#x27;down&#x27;}`;
+                }
+            }
+            
+            // 加载自选股
+            const quotes = [];
+            for (const stock of WATCHLIST) {
+                const quote = await fetchQuote(stock.code);
+                if (quote) {
+                    const analysis = analyzeSEPA(quote);
+                    quotes.push({ quote, analysis });
+                }
+            }
+            
+            // 分类
+            const gold = quotes.filter(q =&gt; q.analysis.sepaScore &gt;= 4);
+            const silver = quotes.filter(q =&gt; q.analysis.sepaScore &gt;= 2 &amp;&amp; q.analysis.sepaScore &lt; 4);
+            const buySignals = quotes.filter(q =&gt; q.analysis.signal === &#x27;buy&#x27;);
+            const highTurnover = quotes.filter(q =&gt; parseFloat(q.quote.turnover) &gt; TURNOVER_THRESHOLD);
+            
+            // 更新统计
+            document.getElementById(&#x27;goldCount&#x27;).textContent = gold.length;
+            document.getElementById(&#x27;silverCount&#x27;).textContent = silver.length;
+            document.getElementById(&#x27;buyCount&#x27;).textContent = buySignals.length;
+            document.getElementById(&#x27;alertCount&#x27;).textContent = highTurnover.length;
+            document.getElementById(&#x27;totalCount&#x27;).textContent = WATCHLIST.length;
+            
+            // 渲染金牌
+            let goldHtml = &#x27;&#x27;;
+            if (gold.length &gt; 0) {
+                goldHtml = &#x27;&lt;div class=&quot;section-title gold&quot;&gt;金牌候选 (SEPA 4/4)&lt;/div&gt;&lt;div class=&quot;stocks-grid&quot;&gt;&#x27;;
+                gold.forEach(q =&gt; goldHtml += renderCard(q.quote, q.analysis, &#x27;gold&#x27;));
+                goldHtml += &#x27;&lt;/div&gt;&#x27;;
+            }
+            document.getElementById(&#x27;goldSection&#x27;).innerHTML = goldHtml;
+            
+            // 渲染白银
+            let silverHtml = &#x27;&#x27;;
+            if (silver.length &gt; 0) {
+                silverHtml = &#x27;&lt;div class=&quot;section-title silver&quot;&gt;白银候选 (SEPA 2-3/4)&lt;/div&gt;&lt;div class=&quot;stocks-grid&quot;&gt;&#x27;;
+                silver.forEach(q =&gt; silverHtml += renderCard(q.quote, q.analysis, &#x27;silver&#x27;));
+                silverHtml += &#x27;&lt;/div&gt;&#x27;;
+            }
+            document.getElementById(&#x27;silverSection&#x27;).innerHTML = silverHtml;
+            
+            // 渲染自选股
+            quotes.sort((a, b) =&gt; {
+                if (a.analysis.signal === &#x27;buy&#x27; &amp;&amp; b.analysis.signal !== &#x27;buy&#x27;) return -1;
+                if (a.analysis.signal !== &#x27;buy&#x27; &amp;&amp; b.analysis.signal === &#x27;buy&#x27;) return 1;
+                if (a.analysis.signal === &#x27;sell&#x27; &amp;&amp; b.analysis.signal !== &#x27;sell&#x27;) return -1;
+                if (a.analysis.signal !== &#x27;sell&#x27; &amp;&amp; b.analysis.signal === &#x27;sell&#x27;) return 1;
+                return parseFloat(b.quote.turnover) - parseFloat(a.quote.turnover);
+            });
+            
+            let watchHtml = &#x27;&lt;div class=&quot;section-title watchlist&quot;&gt;自选股监控&lt;/div&gt;&lt;div class=&quot;stocks-grid&quot;&gt;&#x27;;
+            quotes.forEach(q =&gt; watchHtml += renderCard(q.quote, q.analysis, &#x27;watchlist&#x27;));
+            watchHtml += &#x27;&lt;/div&gt;&#x27;;
+            document.getElementById(&#x27;watchlistSection&#x27;).innerHTML = watchHtml;
+            
+            document.getElementById(&#x27;updateTime&#x27;).textContent = &#x27;更新: &#x27; + new Date().toLocaleString(&#x27;zh-CN&#x27;);
+        }
+
+        loadAll();
+        setInterval(loadAll, 60000);
+        
+        // 回车添加
+        document.getElementById(&#x27;stockCode&#x27;).addEventListener(&#x27;keypress&#x27;, e =&gt; {
+            if (e.key === &#x27;Enter&#x27;) addStock();
+        });
+    &lt;/script&gt;
+&lt;/body&gt;
+&lt;/html&gt;
